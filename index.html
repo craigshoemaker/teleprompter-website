@@ -1,0 +1,252 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Teleprompter</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: Arial, sans-serif;
+            background-color: #000;
+        }
+
+        .tab {
+            overflow: hidden;
+            border: 1px solid #ccc;
+            background-color: #f1f1f1;
+        }
+
+        .tab button {
+            background-color: inherit;
+            float: left;
+            border: none;
+            outline: none;
+            cursor: pointer;
+            padding: 14px 16px;
+            transition: 0.3s;
+        }
+
+        .tab button:hover {
+            background-color: #ddd;
+        }
+
+        .tab button.active {
+            background-color: #ccc;
+        }
+
+        .tabcontent {
+            display: none;
+            padding: 20px;
+            background-color: #ccc;
+        }
+
+        #controls {
+            position: fixed;
+            right: 20px;
+            top: 50%;
+            transform: translateY(-50%) scaleX(-1);
+            background: rgba(0, 0, 0, 0.7);
+            padding: 20px;
+            border-radius: 10px;
+            color: white;
+            z-index: 1000;
+        }
+
+        #controls button {
+            display: block;
+            margin: 10px 0;
+            padding: 10px;
+            width: 100%;
+        }
+
+        #teleprompter {
+            height: 100vh;
+            background: black;
+            color: white;
+            overflow-y: auto;
+            transform: scaleX(-1);
+            width: 80%;
+            margin-left: auto;
+            margin-right: auto;
+        }
+
+        #teleprompter-text {
+            font-size: 2em;
+            line-height: 1.5;
+            padding: 20px;
+            text-align: center;
+        }
+
+        #teleprompter-text h1 {
+            margin: 0.5em 0;
+            font-weight: normal;
+        }
+
+        .control-group {
+            margin: 15px 0;
+        }
+
+        .control-group label {
+            display: block;
+            margin-bottom: 5px;
+        }
+
+        #script-input {
+            width: 100%;
+            height: 200px;
+            margin-bottom: 20px;
+        }
+
+        #progress-container {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            height: 5px;
+            background: rgba(79, 79, 79, 0.3);
+        }
+
+        #progress {
+            height: 100%;
+            width: 0;
+            background: #4CAF50;
+            transition: width 0.3s;
+        }
+
+        #timer {
+            position: fixed;
+            top: 10px;
+            left: 10px;
+            background: rgba(0, 0, 0, 0.7);
+            color: white;
+            padding: 5px 10px;
+            border-radius: 5px;
+            font-size: 14px;
+            transform: scaleX(-1);
+        }
+
+        /* Custom scrollbar */
+        #teleprompter::-webkit-scrollbar {
+            width: 12px;
+        }
+
+        #teleprompter::-webkit-scrollbar-track {
+            background: #333;
+        }
+
+        #teleprompter::-webkit-scrollbar-thumb {
+            background: #666;
+            border-radius: 6px;
+        }
+    </style>
+</head>
+<body>
+    <div class="tab">
+        <button class="tablinks" onclick="openTab(event, 'input-tab')">Input</button>
+        <button class="tablinks" onclick="openTab(event, 'settings-tab')">Settings</button>
+    </div>
+
+    <div id="input-tab" class="tabcontent">
+        <textarea id="script-input" placeholder="Enter your script here..."></textarea>
+        <button id="save-script">Save Script</button>
+        <button id="load-script">Load Script</button>
+    </div>
+
+    <div id="settings-tab" class="tabcontent">
+        <div class="control-group">
+            <label for="background-color">Background Color:</label>
+            <input type="color" id="background-color" value="#000000">
+        </div>
+        <div class="control-group">
+            <label for="font-color">Font Color:</label>
+            <input type="color" id="font-color" value="#ffffff">
+        </div>
+        <div class="control-group">
+            <label for="font-size">Font Size (em):</label>
+            <input type="range" id="font-size" min="1" max="5" step="0.1" value="2">
+        </div>
+        <div class="control-group">
+            <label for="line-spacing">Line Spacing:</label>
+            <input type="range" id="line-spacing" min="1" max="3" step="0.1" value="1.5">
+        </div>
+    </div>
+
+    <div id="teleprompter">
+        <div id="teleprompter-text"></div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // DOM Elements
+            const scriptInput = document.getElementById('script-input');
+            const teleprompterText = document.getElementById('teleprompter-text');
+
+
+            // Settings handlers
+            document.getElementById('background-color').addEventListener('input', (e) => {
+                document.getElementById('teleprompter').style.background = e.target.value;
+            });
+
+            document.getElementById('font-color').addEventListener('input', (e) => {
+                teleprompterText.style.color = e.target.value;
+            });
+
+            document.getElementById('font-size').addEventListener('input', (e) => {
+                teleprompterText.style.fontSize = e.target.value + 'em';
+            });
+
+            document.getElementById('line-spacing').addEventListener('input', (e) => {
+                teleprompterText.style.lineHeight = e.target.value;
+            });
+
+            // Script to HTML conversion
+            function convertToHTML(text) {
+                return text.split('\n')
+                    .filter(line => line.trim())
+                    .map(line => `<h1>${line}</h1>`)
+                    .join('');
+            }
+
+            // Save/Load functionality
+            document.getElementById('save-script').addEventListener('click', () => {
+                localStorage.setItem('teleprompterScript', scriptInput.value);
+            });
+
+            document.getElementById('load-script').addEventListener('click', () => {
+                const savedScript = localStorage.getItem('teleprompterScript');
+                if (savedScript) {
+                    scriptInput.value = savedScript;
+                    teleprompterText.innerHTML = convertToHTML(savedScript);
+                }
+            });
+
+            // Event listeners
+            scriptInput.addEventListener('input', () => {
+                teleprompterText.innerHTML = convertToHTML(scriptInput.value);
+            });
+
+        });
+
+        // Tab functionality
+        function openTab(evt, tabName) {
+            const tabcontent = document.getElementsByClassName("tabcontent");
+            const tablinks = document.getElementsByClassName("tablinks");
+            
+            for (let i = 0; i < tabcontent.length; i++) {
+                tabcontent[i].style.display = "none";
+            }
+            
+            for (let i = 0; i < tablinks.length; i++) {
+                tablinks[i].className = tablinks[i].className.replace(" active", "");
+            }
+            
+            document.getElementById(tabName).style.display = "block";
+            evt.currentTarget.className += " active";
+        }
+
+        // Initialize first tab as open
+        document.querySelector('.tablinks').click();
+    </script>
+</body>
+</html>
